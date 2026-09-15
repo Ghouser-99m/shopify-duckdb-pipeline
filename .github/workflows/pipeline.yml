@@ -1,0 +1,36 @@
+name: Shopify to DuckDB Sync
+
+on:
+  schedule:
+    # Runs daily at 02:00 UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}  # allows manual trigger from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          SHOPIFY_SHOP: ${{ secrets.SHOPIFY_SHOP }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        run: python -m src.main --entities products
+
+      - name: Commit updated warehouse file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add warehouse.duckdb
+          git diff --cached --quiet || git commit -m "Update warehouse data [automated]"
+          git push
